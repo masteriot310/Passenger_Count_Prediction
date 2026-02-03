@@ -1,15 +1,14 @@
 from supabase import create_client, Client
 import os
+import pandas as pd
 from typing import List, Dict
+from env_loader import load_env
 
-# Read Supabase credentials from environment variables
+# Load environment variables
+load_env()
+
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-
-if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError(
-        "SUPABASE_URL and SUPABASE_KEY must be set as environment variables"
-    )
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -17,12 +16,6 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 def fetch_passenger_counts() -> List[Dict]:
     """
     Fetch timestamp and count columns from the passenger_count table.
-
-    Returns:
-        List[Dict]: [
-            {"timestamp": "...", "count": int},
-            ...
-        ]
     """
     response = (
         supabase
@@ -32,7 +25,26 @@ def fetch_passenger_counts() -> List[Dict]:
         .execute()
     )
 
-    if response.data is None:
-        return []
+    return response.data or []
+import pandas as pd
 
-    return response.data
+def fetch_passenger_counts_df() -> pd.DataFrame:
+    """
+    Fetch passenger counts as a Pandas DataFrame
+    """
+    data = fetch_passenger_counts()
+    df = pd.DataFrame(data)
+
+    # Convert timestamp to datetime
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
+
+    return df.sort_values("timestamp").reset_index(drop=True)
+
+if __name__ == "__main__":
+    data = fetch_passenger_counts()
+
+    print(f"Rows fetched: {len(data)}")
+
+    # Print first 10 rows only (avoid dumping huge tables)
+    for row in data[:10]:
+        print(row)
